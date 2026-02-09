@@ -2,7 +2,7 @@
 //  ContentView.swift
 //  SimplyDo
 //
-//  Created by Oleksandr Anyshchenko on 09/02/2026.
+//  Created by Oleksandr on 09/02/2026.
 //
 
 import SwiftUI
