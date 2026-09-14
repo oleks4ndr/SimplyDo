@@ -5,13 +5,9 @@
 //  Created by Oleksandr
 //
 
-import AppKit
 import Combine
 import Foundation
 
-/// what actually lands on disk. schemaVersion is there so a future breaking
-/// format change can spot old files - adding new optional fields to TodoItem
-/// decodes fine into existing stores and does not need a bump.
 struct StoreFile: Codable {
     var schemaVersion: Int = 1
     var categories: [TodoCategory]
@@ -22,34 +18,27 @@ final class TodoStore: ObservableObject {
     @Published var categories: [TodoCategory] = [] {
         didSet {
             guard !isLoading else { return }
-            scheduleSave()
+            persist()
         }
     }
 
     /// nil when there is nowhere writable to save, and for previews
     private let fileURL: URL?
-    private let saveDebounce: Duration = .milliseconds(400)
-    private var saveTask: Task<Void, Never>?
     private var isLoading = false
-    private var terminationObserver: (any NSObjectProtocol)?
 
     init(inMemory: Bool = false) {
         fileURL = inMemory ? nil : Self.makeFileURL()
         load()
-        observeTermination()
-    }
-
-    deinit {
-        if let terminationObserver {
-            NotificationCenter.default.removeObserver(terminationObserver)
-        }
     }
 
     // MARK: - Categories
 
-    func addCategory(name: String) {
-        guard let name = Self.clean(name) else { return }
-        categories.append(TodoCategory(name: name))
+    @discardableResult
+    func addCategory(name: String) -> TodoCategory.ID? {
+        guard let name = Self.clean(name) else { return nil }
+        let category = TodoCategory(name: name)
+        categories.append(category)
+        return category.id
     }
 
     func renameCategory(_ id: TodoCategory.ID, to name: String) {
@@ -71,6 +60,7 @@ final class TodoStore: ObservableObject {
     func addItem(title: String, to categoryID: TodoCategory.ID) {
         guard let title = Self.clean(title), let i = index(of: categoryID) else { return }
         categories[i].items.append(TodoItem(title: title))
+        categories[i].isCollapsed = false
     }
 
     func toggleDone(_ itemID: TodoItem.ID, in categoryID: TodoCategory.ID) {
@@ -149,22 +139,6 @@ final class TodoStore: ObservableObject {
 
     // MARK: - Saving
 
-    private func scheduleSave() {
-        saveTask?.cancel()
-        saveTask = Task {
-            try? await Task.sleep(for: saveDebounce)
-            guard !Task.isCancelled else { return }
-            persist()
-        }
-    }
-
-    /// writes immediately, skipping the debounce
-    func flush() {
-        saveTask?.cancel()
-        saveTask = nil
-        persist()
-    }
-
     private func persist() {
         guard let fileURL else { return }
         do {
@@ -172,20 +146,6 @@ final class TodoStore: ObservableObject {
             try data.write(to: fileURL, options: .atomic)
         } catch {
             NSLog("SimplyDo: save failed (\(error))")
-        }
-    }
-
-    private func observeTermination() {
-        terminationObserver = NotificationCenter.default.addObserver(
-            forName: NSApplication.willTerminateNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            // has to be synchronous - hopping to a new Task here would let the
-            // process exit before a debounced edit ever reaches disk
-            MainActor.assumeIsolated {
-                self?.flush()
-            }
         }
     }
 
@@ -206,8 +166,6 @@ final class TodoStore: ObservableObject {
 
     private static func makeFileURL() -> URL? {
         do {
-            // app is sandboxed, so this lands in the container:
-            // ~/Library/Containers/com.oleks4ndr.SimplyDo/Data/Library/Application Support
             let support = try FileManager.default.url(
                 for: .applicationSupportDirectory,
                 in: .userDomainMask,
@@ -225,7 +183,6 @@ final class TodoStore: ObservableObject {
 }
 
 extension TodoStore {
-    /// sample data for #Preview. never touches disk.
     static var preview: TodoStore {
         let store = TodoStore(inMemory: true)
         store.categories = [
