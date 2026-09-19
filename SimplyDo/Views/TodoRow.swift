@@ -19,11 +19,12 @@ struct TodoRow: View {
     @FocusState private var isFieldFocused: Bool
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+        HStack(spacing: 8) {
             Button(action: toggle) {
                 Image(systemName: item.isDone ? "checkmark.circle.fill" : "circle")
                     .font(.body)
-                    .foregroundStyle(item.isDone ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                    .foregroundStyle(item.isDone ? AppColor.accent : AppColor.textSecondary)
+                    .frame(width: Metrics.checkboxTapTarget, height: Metrics.checkboxTapTarget)
             }
             .buttonStyle(.plain)
 
@@ -31,15 +32,17 @@ struct TodoRow: View {
                 TextField("", text: $draft)
                     .textFieldStyle(.plain)
                     .font(.callout)
+                    .foregroundStyle(AppColor.textPrimary)
                     .focused($isFieldFocused)
                     .onSubmit(commitRename)
                     .onExitCommand(perform: cancelRename)
             } else {
                 Text(item.title)
                     .font(.callout)
-                    .strikethrough(item.isDone, color: .secondary)
-                    .foregroundStyle(item.isDone ? .secondary : .primary)
-                    .lineLimit(2)
+                    .strikethrough(item.isDone, color: AppColor.textSecondary)
+                    .foregroundStyle(item.isDone ? AppColor.textSecondary : AppColor.textPrimary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                     .onTapGesture(count: 2, perform: beginRename)
             }
 
@@ -51,23 +54,18 @@ struct TodoRow: View {
                         store.deleteItem(item.id, in: categoryID)
                     }
                 } label: {
-                    Image(systemName: "xmark.circle.fill")
+                    Image(systemName: "trash")
                         .font(.caption)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(AppColor.textSecondary)
                 }
                 .buttonStyle(.plain)
                 .help("Delete task")
             }
         }
-        .padding(.leading, 18)
-        .padding(.trailing, 6)
-        .padding(.vertical, 4)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
         .contentShape(.rect)
-        .background(
-            RoundedRectangle(cornerRadius: 5)
-                .fill(isHovering ? Color.primary.opacity(0.06) : .clear)
-        )
-        .padding(.horizontal, 6)
+        .background(RoundedRectangle(cornerRadius: Metrics.rowCornerRadius).fill(isHovering ? AppColor.rowHover : AppColor.row))
         .onHover { isHovering = $0 }
         .contextMenu {
             Button("Rename", action: beginRename)
@@ -103,12 +101,12 @@ struct TodoRow: View {
     let store = TodoStore.preview
     let category = store.categories[0]
 
-    return VStack(alignment: .leading, spacing: 0) {
+    return VStack(alignment: .leading, spacing: 8) {
         ForEach(category.items) { item in
             TodoRow(item: item, categoryID: category.id)
         }
     }
-    .frame(width: 320)
+    .frame(width: Metrics.popoverWidth)
     .padding(.vertical, 8)
     .environmentObject(store)
 }

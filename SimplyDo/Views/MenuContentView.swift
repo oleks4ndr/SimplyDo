@@ -16,10 +16,6 @@ struct MenuContentView: View {
 
     @State private var contentHeight: CGFloat = 0
 
-    private var openCount: Int {
-        store.categories.reduce(0) { $0 + ($1.items.count - $1.completedCount) }
-    }
-
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -35,11 +31,6 @@ struct MenuContentView: View {
                 .font(.headline)
                 .foregroundStyle(AppColor.textPrimary)
 
-            Text(openCount == 1 ? "1 open" : "\(openCount) open")
-                .font(.caption)
-                .monospacedDigit()
-                .foregroundStyle(AppColor.textSecondary)
-
             Spacer()
 
             Button(action: beginAddCategory) {
@@ -52,6 +43,19 @@ struct MenuContentView: View {
             }
             .buttonStyle(.plain)
             .help("New category")
+
+            Menu {
+                Button("Quit SimplyDo") {
+                    NSApplication.shared.terminate(nil)
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.callout)
+                    .foregroundStyle(AppColor.textSecondary)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .help("More")
         }
         .padding(.horizontal, Metrics.contentInset)
         .padding(.vertical, 12)

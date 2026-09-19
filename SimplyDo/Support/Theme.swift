@@ -7,7 +7,7 @@ import SwiftUI
 
 enum AppColor {
     static let background = Color("AppBackground")
-    static let card = Color("CardBackground")
+    static let card: Material = .regularMaterial
     static let row = Color("RowBackground")
     static let rowHover = Color("RowBackgroundHover")
     static let textPrimary = Color("TextPrimary")

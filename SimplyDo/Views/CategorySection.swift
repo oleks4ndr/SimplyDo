@@ -30,20 +30,20 @@ struct CategorySection: View {
                 addTaskField
             }
 
-            if !category.isCollapsed {
-                if category.items.isEmpty {
-                    Text("Nothing here yet")
-                        .font(.caption)
-                        .foregroundStyle(AppColor.textSecondary)
-                } else {
-                    ForEach(category.items) { item in
-                        TodoRow(item: item, categoryID: category.id)
-                    }
+            if !category.isCollapsed && !category.items.isEmpty {
+                ForEach(category.items) { item in
+                    TodoRow(item: item, categoryID: category.id)
                 }
             }
         }
         .padding(Metrics.cardPadding)
-        .background(RoundedRectangle(cornerRadius: Metrics.cardCornerRadius).fill(AppColor.card))
+        .background(RoundedRectangle(cornerRadius: Metrics.cardCornerRadius))
+        .onChange(of: category.isCollapsed) { _, isCollapsed in
+            if isCollapsed { isAddingTask = false }
+        }
+        .onChange(of: isTaskFieldFocused) { _, isFocused in
+            if !isFocused { isAddingTask = false }
+        }
     }
 
     private var header: some View {
@@ -52,7 +52,7 @@ struct CategorySection: View {
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(AppColor.textSecondary)
                 .rotationEffect(.degrees(category.isCollapsed ? 0 : 90))
-                .opacity(isHovering ? 1 : 0)
+                .opacity(isHovering && !category.items.isEmpty ? 1 : 0)
 
             if isRenaming {
                 TextField("", text: $draft)
@@ -71,7 +71,7 @@ struct CategorySection: View {
 
             Spacer(minLength: 0)
 
-            Text("\(category.completedCount)/\(category.items.count)")
+            Text("\(category.items.count) task\(category.items.count == 1 ? "" : "s")")
                 .font(.caption)
                 .monospacedDigit()
                 .foregroundStyle(AppColor.textSecondary)
@@ -89,7 +89,7 @@ struct CategorySection: View {
         .contentShape(.rect)
         .onHover { isHovering = $0 }
         .onTapGesture {
-            guard !isRenaming else { return }
+            guard !isRenaming, !category.items.isEmpty else { return }
             withAnimation(.easeInOut(duration: 0.18)) {
                 store.toggleCollapsed(category.id)
             }
